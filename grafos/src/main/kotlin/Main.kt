@@ -70,7 +70,7 @@ fun main(): Unit = runBlocking {
                     result.data?.let {
                         url = it.websocketUrl
                         url = url.substring(url.indexOf("/ws/") + 1)
-                        println("WebSocket URL: $it.websocketUrl")
+                        println("WebSocket URL: ${it.websocketUrl}")
                         saidas = service.iniciaWS(url)
                     }
                 }
@@ -87,6 +87,8 @@ fun main(): Unit = runBlocking {
             when (result) {
                 is Resource.Error -> {
                     println(result.message)
+                    isSaida = service.isFinalizar()
+                    return@collect
                 }
 
                 is Resource.Loading -> {
@@ -94,25 +96,15 @@ fun main(): Unit = runBlocking {
                 }
 
                 is Resource.Success -> {
-                    result.data?.let {
-                        println(it)
-                    }
+                    println(result.data)
+                    isSaida = service.isFinalizar()
+                    return@collect
                 }
             }
-
-            println(
-                "Deseja sair?\n" +
-                        "1 - sair\n" +
-                        "2 - continuar"
-            )
-            val sair = readlnOrNull()
-            if ((sair ?: "1") == "1") {
-                isSaida = true
-                println("Finalizado")
-            }
         }
-        return@runBlocking
+//        return@runBlocking
     }
+    return@runBlocking
 }
 
 

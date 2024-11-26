@@ -222,4 +222,18 @@ class Service {
         return v.adjacentes.find { it.vertice == objetivo.verticeAtual }?.peso ?: Int.MAX_VALUE
     }
 
+    fun isFinalizar():Boolean{
+        println(
+            "Deseja sair?\n" +
+                    "1 - sair\n" +
+                    "2 - continuar"
+        )
+        val sair = readlnOrNull()
+        if ((sair ?: "1") == "1") {
+            println("Finalizado")
+            return true
+        }
+        return false
+    }
+
 }
