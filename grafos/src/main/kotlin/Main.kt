@@ -35,6 +35,8 @@ fun main(): Unit = runBlocking {
                 }
 
                 is Resource.Success -> {
+                    println("Grupo criado com sucesso...")
+                    println(result.data)
                     result.data?.let {
                         idGrupo = it.grupoId
                     }
@@ -106,6 +108,4 @@ fun main(): Unit = runBlocking {
     }
     return@runBlocking
 }
-
-
 

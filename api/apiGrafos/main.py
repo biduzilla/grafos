@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, Column, Integer, Float, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.schema import PrimaryKeyConstraint
+from fastapi.middleware.cors import CORSMiddleware
 
 Base = declarative_base()
 
@@ -54,6 +55,7 @@ class Labirinto(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     vertices = relationship("Vertice", back_populates="labirinto")
     entrada = Column(Integer)
+    saida = Column(String)
     dificuldade = Column(String)
 
     info_grupos = relationship("InfoGrupo", back_populates="labirinto")
@@ -89,11 +91,10 @@ class SessaoWebSocket(Base):
     __tablename__ = 'sessoes_websocket'
     
     id = Column(Integer, primary_key=True, unique=True, autoincrement=True)
-    grupo_id = Column(SQLUUID(as_uuid=True), ForeignKey('grupos.id'))  # Defina como UUID diretamente
+    grupo_id = Column(SQLUUID, ForeignKey('grupos.id'))  # Use String type for UUID
     conexao = Column(String)
 
     grupo = relationship("Grupo", back_populates="sessoes_websocket")
-
 
 # Pydantic models
 class VerticeModel(BaseModel):
@@ -132,6 +133,9 @@ class GrupoDto(BaseModel):
     nome: str
     labirintos_concluidos: Optional[List[int]]
 
+    class Config:
+        orm_mode = True  # permite conversão automática de objetos ORM para JSON
+
 class CriarGrupoDto(BaseModel):
     nome: str
 
@@ -143,6 +147,10 @@ class RespostaDto(BaseModel):
     labirinto: int
     grupo: UUID
     vertices: List[int]
+
+class RetornaLabirintosDto(BaseModel):
+    labirinto: int
+    dificuldade: str
 
 # Websocket manager
 class ConnectionManager:
@@ -179,11 +187,23 @@ def get_db():
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[""],  # Permite todas as origens. Troque "" por um domínio específico se necessário.
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos os métodos (GET, POST, etc.).
+    allow_headers=["*"],  # Permite todos os cabeçalhos.
+)
+
 @app.post("/grupo")
 async def registrar_grupo(grupo: CriarGrupoDto):
     db = next(get_db())
-    grupo_db = Grupo(id=uuid.uuid4(), nome=grupo.nome)
+    grupo_id = uuid.uuid4()
+    grupo_db = Grupo(id=grupo_id, nome=grupo.nome)
     db.add(grupo_db)
+    for labirinto in db.query(Labirinto).all():
+        info_grupo = InfoGrupo(grupo_id=grupo_id, labirinto_id=labirinto.id, passos = 0, exploracao = 0)
+        db.add(info_grupo)
     db.commit()
     grupo_dto = GrupoDto(id=grupo_db.id, nome=grupo_db.nome, labirintos_concluidos=[])
     return {"GrupoId": grupo_dto.id}
@@ -202,6 +222,9 @@ async def criar_labirinto(labirinto: LabirintoModel):
             labirinto_id=labirinto_db.id,
             tipo=vertice.tipo
         )
+        if vertice.tipo == 2:
+            labirinto_db.saida = (labirinto_db.saida or "") + f"{vertice.id}, "
+
         db.add(vertice_db)
     for aresta in labirinto.arestas:
         aresta_db = Aresta(
@@ -224,16 +247,22 @@ async def retorna_grupos():
     grupos_dto = [GrupoDto(id=grupo.id, nome=grupo.nome, labirintos_concluidos=[]) for grupo in grupos]
     return {"Grupos": grupos_dto}
 
-@app.get("/iniciar/{grupo_id}")
-async def iniciar_desafio(grupo_id: UUID):
+@app.get("/labirintos")
+async def get_labirintos():
     db = next(get_db())
-    grupo_db = db.query(Grupo).filter(Grupo.id == grupo_id).first()
-    if not grupo_db:
-        raise HTTPException(status_code=404, detail="Grupo não encontrado")
-    pass
+    labirintos = db.query(Labirinto).all()
+    
+    if not labirintos:
+        print("Nenhum labirinto encontrado no banco de dados.")
+    
+    lista_labirintos = []
+    for labirinto in labirintos:
+        print(f"Labirinto encontrado: ID={labirinto.id}, Dificuldade={labirinto.dificuldade}")
+        lista_labirintos.append(RetornaLabirintosDto(labirinto=labirinto.id, dificuldade=labirinto.dificuldade))    
+    return {"labirintos": lista_labirintos}
 
 @app.get("/labirintos/{grupo_id}")
-async def get_labirintos(grupo_id: UUID):
+async def get_info_labirintos(grupo_id: UUID):
     db = next(get_db())
     # Consultar as informações relacionadas ao grupo
     informacoesGrupo = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == grupo_id).all()
@@ -248,18 +277,16 @@ async def get_labirintos(grupo_id: UUID):
         
         # Criar o DTO para cada InfoGrupo
         labirintoDto = LabirintoDto(
-            LabirintoId=labirinto.id,  # Acessa o ID do labirinto
-            Dificuldade=labirinto.dificuldade,  # Acessa a dificuldade
-            Completo=labirinto.id in grupo.labirintos_concluidos.split(','),  # Verifica se o labirinto está concluído
-            Passos=info.passos,  # Acessa os passos
-            Exploracao=info.exploracao  # Acessa a exploração
+            LabirintoId=labirinto.id,
+            Dificuldade=labirinto.dificuldade,
+            Completo=labirinto.id in grupo.labirintos_concluidos.split(',') if grupo.labirintos_concluidos else False,
+            Passos=info.passos,
+            Exploracao=info.exploracao
         )
         informacoesGrupoDto.append(labirintoDto)
     # Retorna os DTOs
     return {"labirintos": informacoesGrupoDto}
 
-## TODO
-## FAZER PLACAR
 @app.get("/placar")
 async def get_placar():
     db = next(get_db())
@@ -422,9 +449,9 @@ async def enviar_resposta(resposta: RespostaDto):
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
 
     vertices = resposta.vertices
-
+    saida = [int(s) for s in labirinto.saida.split(",") if s]
     # Verifica se o labirinto foi concluído
-    if vertices[0] != labirinto.entrada or vertices[-1] != labirinto.saida:
+    if vertices[0] != labirinto.entrada or vertices[-1] not in saida:
         raise HTTPException(status_code=400, detail="Labirinto não foi concluído")
 
     # Check if each consecutive pair in vertices list has an edge connecting them
