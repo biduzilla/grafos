@@ -23,8 +23,6 @@ class Service {
     suspend fun iniciaWS(url: String): List<Int> {
         client.webSocket(host = Constants.IP, port = Constants.PORT.toInt(), path = url) {
             tremaux(this, 0)
-            println("Saídas: ${verticesInfoSaidas.map { v -> v.verticeAtual }}")
-            println("Visitados: ${verticesVisitados.map { v -> v.verticeAtual }}")
             println("Procurando o melhor caminho...")
             melhorCaminho = estrela(verticesVisitados, verticesInfoSaidas)
 
@@ -124,6 +122,10 @@ class Service {
                     stack.pop()
                 }
             }
+
+            println("Saídas: ${verticesInfoSaidas.map { v -> v.verticeAtual }}")
+            println("Visitados: ${verticesVisitados.map { v -> v.verticeAtual }}")
+
             if (estrela(verticesVisitados, verticesInfoSaidas).isNotEmpty()) {
                 return
             }
