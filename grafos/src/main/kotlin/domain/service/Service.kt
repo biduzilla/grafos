@@ -23,11 +23,7 @@ class Service {
         client.webSocket(host = Constants.IP, port = Constants.PORT.toInt(), path = url) {
             tremaux(this, 0)
 
-            if (melhorCaminho.isNotEmpty()) {
-                println("Melhor caminho encontrado: ${melhorCaminho.joinToString(" -> ")}")
-            } else {
-                println("Não foi encontrado um caminho.")
-            }
+            println("Melhor caminho encontrado: ${melhorCaminho.joinToString(" -> ")}")
 
             close()
             return@webSocket
@@ -88,8 +84,6 @@ class Service {
 
                 getVerticeInfo(sessao, currentVertex)?.let { verticeInfo ->
                     if (verticeInfo.adjacentes.isNotEmpty()) {
-                        println("LAST: ${verticeInfo.adjacentes.map { it.vertice }}")
-                        println("LAST:${verticeInfo.adjacentes[0].vertice}")
                         last = verticeInfo.adjacentes[0].vertice
                     }
 
@@ -101,6 +95,8 @@ class Service {
                             melhorCaminho = estrela(verticesVisitados, verticesInfoSaidas)
                             if (melhorCaminho.isNotEmpty()) {
                                 return
+                            }else{
+                                println("Não foi encontrado um caminho, continuando...")
                             }
                         }
                     }
