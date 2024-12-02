@@ -1,6 +1,5 @@
 package org.example
 
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runBlocking
 import org.example.domain.models.GenerateWs
 import org.example.domain.models.Resposta

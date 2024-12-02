@@ -4,7 +4,6 @@ import domain.models.Labirintos
 import domain.models.Sessoes
 import org.example.domain.models.*
 import retrofit2.Response
-import retrofit2.http.Body
 
 interface Repository {
     suspend fun postGrupo(grupo: RequestGrupo): Response<ResponseGrupo>
