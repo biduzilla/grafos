@@ -72,6 +72,7 @@ fun main(): Unit = runBlocking {
                         url = it.websocketUrl
                         url = url.substring(url.indexOf("/ws/") + 1)
                         println("WebSocket URL: ${it.websocketUrl}")
+                        println("WebSocket URL: $url")
                         saidas = service.iniciaWS(url)
                     }
                 }

@@ -11,8 +11,8 @@ import org.example.utils.messageToVerticeInfo
 import java.util.*
 
 class Service {
-    private val verticesVisitados: MutableList<VerticeInfo> = mutableListOf()
-    private val verticesInfoSaidas: MutableList<VerticeInfo> = mutableListOf()
+    private var verticesVisitados: MutableList<VerticeInfo> = mutableListOf()
+    private var verticesInfoSaidas: MutableList<VerticeInfo> = mutableListOf()
     private var primeiraVez = true
     private var melhorCaminho: List<Int> = emptyList()
     private val client = HttpClient(CIO) {
@@ -20,7 +20,8 @@ class Service {
     }
 
     suspend fun iniciaWS(url: String): List<Int> {
-        client.webSocket(host = Constants.IP, port = Constants.PORT.toInt(), path = url) {
+        client.webSocket(urlString = Constants.BASE_URL_WS + url) {
+//        client.webSocket(host = Constants.IP, port = Constants.PORT.toInt(), path = url) {
             tremaux(this, 0)
 
             println("Melhor caminho encontrado: ${melhorCaminho.joinToString(" -> ")}")
@@ -95,7 +96,7 @@ class Service {
                             melhorCaminho = estrela(verticesVisitados, verticesInfoSaidas)
                             if (melhorCaminho.isNotEmpty()) {
                                 return
-                            }else{
+                            } else {
                                 println("Não foi encontrado um caminho, continuando...")
                             }
                         }
@@ -199,6 +200,12 @@ class Service {
             println("Finalizado")
             return true
         }
+        verticesInfoSaidas = mutableListOf()
+        verticesVisitados = mutableListOf()
+        verticesInfoSaidas = mutableListOf()
+        primeiraVez = true
+        melhorCaminho = emptyList()
+
         return false
     }
 
